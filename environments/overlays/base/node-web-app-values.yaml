@@ -1,0 +1,20 @@
+command:
+  - /cnb/process/web
+fullnameOverride: node-web-app
+image:
+  repository: localhost:5000/node-web-app
+  tag: latest
+livenessProbe:
+  httpGet:
+    path: /healthz
+    port: 8081
+nameOverride: node-web-app
+podAnnotations:
+  instrumentation.opentelemetry.io/inject-nodejs: observability/instrumentation
+readinessProbe:
+  httpGet:
+    path: /healthz
+    port: 8081
+service:
+  port: 8081
+versionOverride: 0.1.0

@@ -1,0 +1,101 @@
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: git-clone
+#   namespace: tekton-runs
+# spec:
+  
+#   steps:
+#     - args:
+#         - clone
+#         - https://github.com/DeimosCloud/dooshima-cicd.git
+#         - /workspace/output
+#       command:
+#         - git
+#       image: alpine/git
+#       name: git-clone
+#   workspaces:
+#         - name: output
+#           #workspace: source # Declare the 'output' workspace
+#       # workspace: source
+
+
+
+# # apiVersion: tekton.dev/v1beta1
+# # kind: Task
+# # metadata:
+# #   name: git-clone
+# #   namespace: tekton-runs
+# # spec:
+# #   steps:
+# #     - name: git-clone
+# #       image: alpine/git
+# #       command:
+# #         - git
+# #       args:
+# #         - clone
+# #         - https://github.com/DeimosCloud/dooshima-cicd.git
+# #         - /workspace/source  # Directory where the repository will be cloned
+
+
+
+
+
+
+
+
+# # apiVersion: tekton.dev/v1beta1
+# # kind: Task
+# # metadata:
+# #   name: git-clone
+# #   namespace: tekton-runs
+# # spec:
+# #   description: Git clone task
+# #   steps:
+# #     - name: git-clone
+# #       image: alpine/git
+# #       script: |
+# #         - git clone $(inputs.params.url) $(workspaces.source.path)
+# #       env:
+# #         - name: GIT_TERMINAL_PROMPT
+# #           value: "0"  # Wrap the value in quotes to ensure it's interpreted as a string
+# #   params:
+# #     - name: url
+# #       description: The Git repository URL
+# #     - name: revision
+# #       description: The Git revision (branch, tag, or commit) to clone
+# #     - name: deleteExisting
+# #       description: Whether to delete existing workspace content (true/false)
+# #     - name: depth
+# #       description: Clone depth (0 for full history, or a positive integer)
+
+
+
+
+
+
+
+# # apiVersion: tekton.dev/v1beta1
+# # kind: Task
+# # metadata:
+# #   name: git-clone
+# #   namespace: tekton-runs
+# # spec:
+# #   description: Git clone task
+# #   steps:
+# #     - name: git-clone
+# #       image: alpine/git
+# #       script:
+# #         - git clone $(inputs.params.url) $(workspaces.source.path)
+# #       env:
+# #         - name: GIT_TERMINAL_PROMPT
+# #           value: 0
+# #   params:
+# #     - name: url
+# #       description: The Git repository URL
+# #     - name: revision
+# #       description: The Git revision (branch, tag, or commit) to clone
+# #     - name: deleteExisting
+# #       description: Whether to delete existing workspace content (true/false)
+# #     - name: depth
+# #       description: Clone depth (0 for full history, or a positive integer)

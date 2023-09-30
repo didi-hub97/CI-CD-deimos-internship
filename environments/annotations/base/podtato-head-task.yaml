@@ -1,0 +1,290 @@
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: kaniko
+#   namespace: tekton-runs
+# spec:
+#   params:
+#     - name: DOCKERFILE
+#       type: string
+#     - name: IMAGE
+#       type: string
+#   steps:
+#     - name: build
+#       image: gcr.io/kaniko-project/executor:v1.5.1
+#       command:
+#         - /kaniko/executor
+#       args:
+#         - --context=$(workspaces.source.path)
+#         - --dockerfile=$(params.DOCKERFILE)
+#         - --destination=$(params.IMAGE)
+#       env:
+#         - name: DOCKER_CONFIG
+#           value: /tekton/home/.docker
+
+
+
+
+
+
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: kaniko
+  namespace: tekton-runs
+spec:
+  description: Build a Docker image using Kaniko
+  params:
+    - name: DOCKERFILE
+      type: string
+    - name: IMAGE
+      type: string
+    - name: APP_IMAGE
+      type: string
+    - name: BUILDER_IMAGE
+      type: string
+      default: gcr.io/kaniko-project/executor:v1.5.1 
+  workspaces:
+  - name: source
+  steps:
+  - name: build
+    image: gcr.io/kaniko-project/executor:v1.5.1 
+    # entrypoint: ""
+    command:
+    - /kaniko/executor
+    args:
+    - --context=src/podtato-head-main
+    - --dockerfile=src/podtato-head-main/podtato-head-server
+    - --destination=$(params.IMAGE)
+    - --build-arg=APP_IMAGE=$(params.APP_IMAGE)
+    - --build-arg=BUILDER_IMAGE=$(params.BUILDER_IMAGE)
+    env:
+    - name: DOCKER_CONFIG
+      value: /tekton/home/.docker
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: kaniko
+#   namespace: tekton-runs
+# spec:
+#   description: Build a Docker image using Kaniko
+#   inputs:
+#     resources:
+#       - name: source
+#         type: git
+#   outputs:
+#     resources:
+#       - name: image
+#         type: image
+#   steps:
+#     - name: build
+#       image: gcr.io/kaniko-project/executor:v1.5.1@sha256:c6166717f7fe0b7da44908c986137ecfeab21f31ec3992f6e128fff8a94be8a5d
+#       command:
+#         - /kaniko/executor
+#       args:
+#         - --context=$(inputs.resources.source.path)
+#         - --dockerfile=$(params.DOCKERFILE)
+#         - --destination=$(params.IMAGE)
+#         - --build-arg=APP_IMAGE=$(params.APP_IMAGE)
+#         - --build-arg=BUILDER_IMAGE=$(params.BUILDER_IMAGE)
+#       env:
+#         - name: DOCKER_CONFIG
+#           value: /tekton/home/.docker
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# apiVersion: tekton.dev/v1beta1
+# kind: Task
+# metadata:
+#   name: kaniko-build
+# spec:
+#   description: Build a Docker image using Kaniko
+#   steps:
+#     - name: build
+#       image: gcr.io/kaniko-project/executor:v1.5.1  # Adjust the image version as needed
+#       command:
+#         - /kaniko/executor
+#       args:
+#         - --context=src/podtato-head-main/podtato-head-server
+#         - --dockerfile=src/podtato-head-main/podtato-head-server
+#         - --destination=registry.kube-system.svc.cluster.local:80/podtato-head:$(tasks.git-version.results.packageVersion)
+#         - --build-arg=APP_IMAGE=registry.kube-system.svc.cluster.local:80/podtato-head:$(tasks.git-version.results.packageVersion)
+#         - --build-arg=BUILDER_IMAGE=gcr.io/kaniko-project/executor:v1.5.1@sha256:c6166717f7fe0b7da44908c986137ecfeab21f31ec3992f6e128fff8a94be8a5
+#       env:
+#         - name: DOCKER_CONFIG
+#           value: /tekton/home/.docker
+#       resources:
+#         inputs:
+#           - name: source
+#         outputs:
+#           - name: image
+#   params:
+#     - name: DOCKERFILE
+#       description: Path to the Dockerfile within the source directory
+#     - name: IMAGE
+#       description: Name of the Docker image to build (e.g., registry.example.com/my-image:latest)
+#     - name: APP_IMAGE
+#       description: Name of the application image (used as a build argument)
+#     - name: BUILDER_IMAGE
+#       description: Name of the Kaniko builder image (used as a build argument)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# # apiVersion: tekton.dev/v1
+# # kind: Task
+# # metadata:
+# #   name: kaniko
+# #   namespace: tekton-runs
+# #   labels:
+# #     app.kubernetes.io/version: "0.6"
+# #   annotations:
+# #     tekton.dev/pipelines.minVersion: "0.17.0"
+# #     tekton.dev/categories: Image Build
+# #     tekton.dev/tags: image-build
+# #     tekton.dev/displayName: "Build and upload container image using Kaniko"
+# #     tekton.dev/platforms: "linux/amd64,linux/arm64,linux/ppc64le"
+# # spec:
+# #   description: "This Task builds a simple Dockerfile with kaniko and publishes it to the local kubernetes cluster.    "
+# #   params:
+# #     - name: IMAGE
+# #       description: podtatohead image
+# #     - name: DOCKERFILE
+# #       description: Path to the Dockerfile to build.
+# #       default: src/podtato-head-main/podtato-head-server
+# #     - name: CONTEXT
+# #       description: The build context used by Kaniko.
+# #       default: src/podtato-head-main/podtato-head-server
+# #     - name: DESTINATION
+# #       description: The registry where the image will be publised by kaniko
+# #       default: registry.kube-system.svc.cluster.local:80/podtato-head:$(tasks.git-version.results.packageVersion)
+# #     - name: EXTRA_ARGS
+# #       type: array
+# #       default: []
+# #     - name: BUILDER_IMAGE
+# #       description: The image on which builds will run (default is v1.5.1)
+# #       default: gcr.io/kaniko-project/executor:v1.5.1@sha256:c6166717f7fe0b7da44908c986137ecfeab21f31ec3992f6e128fff8a94be8a5
+# #   workspaces:
+# #     - name: source
+# #       #     # default: source
+# #     - name: dockerconfig
+# #       description: Includes a docker `config.json`
+# #       optional: true
+# #       mountPath: /kaniko/.docker
+# #   results:
+# #     - name: IMAGE_DIGEST
+# #       description: Digest of the image just built.
+# #     - name: IMAGE_URL
+# #       description: URL of the image just built.
+# #   steps:
+# #     - name: build-and-push
+# #       workingDir: $(workspaces.source.path)
+# #       image: $(params.BUILDER_IMAGE)
+# #       args:
+# #         - $(params.EXTRA_ARGS)
+# #         - --dockerfile=$(params.DOCKERFILE)
+# #         - --context=$(workspaces.source.path)/$(params.CONTEXT) # The user does not need to care the workspace and the source.
+# #         - --destination=$(params.DESTINATION)
+# #         - --digest-file=$(results.IMAGE_DIGEST.path)
+# #       # kaniko assumes it is running as root, which means this example fails on platforms
+# #       # that default to run containers as random uid (like OpenShift). Adding this securityContext
+# #       # makes it explicit that it needs to run as root.
+# #       securityContext:
+# #         runAsUser: 0
+# #     - name: write-url
+# #       image: docker.io/library/bash:5.1.4@sha256:c523c636b722339f41b6a431b44588ab2f762c5de5ec3bd7964420ff982fb1d9
+# #       script: "set -e\nimage=\"$(params.IMAGE)\"\necho -n \"${image}\" | tee \"$(results.IMAGE_URL.path)\"   \n"
+# #       # workspaces:
+# #       # - name: source
+# #       #   # default: source

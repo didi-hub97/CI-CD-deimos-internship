@@ -1,0 +1,175 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: podtato-head-rollout
+  namespace: myapp
+spec:
+  replicas: 10
+  selector:
+    matchLabels:
+      app: podtato-head-build
+  template:
+    metadata:
+      labels:
+        app: podtato-head-build
+    spec:
+      containers:
+        - name: podtato-head-build
+          image: registry.kube-system.svc.cluster.local:80/podtatohead:$(tasks.git-version.results.packageVersion)
+        - containerPort: 9090
+  minReadySeconds: 30
+  revisionHistoryLimit: 3
+  strategy:
+    canary: #Indicates that the rollout should use the Canary strategy
+      maxSurge: "25%"
+      maxUnavailable: 0
+      steps:
+      - setWeight: 10
+      - pause:
+          duration: 1h # 1 hour
+      - setWeight: 20
+      - pause: {} # pause indefinitely
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+# apiVersion: argoproj.io/v1alpha1
+# kind: Rollout
+# metadata:
+#   name: podtato-head-app
+#   namespace: myapp  # Specify the namespace where your application should be deployed
+# spec:
+#   strategy:
+#     canary:
+#       steps:
+#         - setWeight: 20
+#         - pause: {}
+#         - setWeight: 40
+#         - pause: {duration: 10}
+#         - setWeight: 60
+#         - pause: {duration: 10}
+#         - setWeight: 80
+#         - pause: {duration: 10}
+#   template:
+#     metadata:
+#       labels:
+#         app: podtato-head-app
+#     spec:
+#       containers:
+#         - name: podtato-head-app
+#           image: localhost:5000/podtatohead:latest
+# #           ports:
+# #             - containerPort: 9090
+
+
+
+
+
+
+# apiVersion: argoproj.io/v1alpha1
+# kind: Rollout
+# metadata:
+#   name: podtato-head-rollout
+#   namespace: myapp  # Namespace where your application is deployed
+# spec:
+#   replicas: 2  # Number of replicas to roll out
+#   template:
+#     spec:
+#       containers:
+#         - name: podtato-head-app
+#           image: registry.kube-system.svc.cluster.local:80/podtato-head:CANARY_VERSION
+#           # ports:
+#             # - containerPort: 8080
+#   strategy:
+#     canary:
+#       canaryService: canary-demo-preview
+#       steps:
+#       - setWeight: 20
+#       - pause: {}
+#       - setWeight: 40
+#       - pause: {duration: 10}
+#       - setWeight: 60
+#       - pause: {duration: 10}
+#       - setWeight: 80
+#       - pause: {duration: 10}  
+
+# # strategy:
+#   #   canary:
+#   #     canaryService: podtato-head-canary  # Name of the canary service
+#   #     stableService: podtato-head-stable  # Name of the stable service
+#   #     trafficRouting:
+#   #       istio:
+#   #         virtualService: podtato-head  # Istio VirtualService for routing traffic
+#       steps:
+#         - setWeight: 20
+#         - pause: {}
+#         - setWeight: 40
+#         - pause: {duration: 10}
+#         - setWeight: 60
+#         - pause: {duration: 10}
+#         - setWeight: 80
+#         - pause: {duration: 10}
+#   analysis:
+#     templates:
+#       - name: my-analysis-template
+#         metrics:
+#           - name: http-latency
+#             provider:
+#               httpGet:
+#                 url: http://podtato-head-service:9090/healthz
+#             failureCondition: "status > 499"
+
+# apiVersion: argoproj.io/v1alpha1
+# kind: Rollout
+# metadata:
+#   name: podtato-head-rollout
+#   namespace: tekton-runs
+# spec:
+#   replicas: 5
+#   revisionHistoryLimit: 1
+#   selector:
+#     matchLabels:
+#       app: podtato-head
+#   template:
+#     metadata:
+#       labels:
+#         app: podtato-head
+#     spec:
+#       containers:
+#       - name: podtato-head
+#         image: argoproj/rollouts-demo:blue
+#         imagePullPolicy: Always
+#         ports:
+#         - name: http
+#           containerPort: 9000
+#           protocol: TCP
+#         resources:
+#           requests:
+#             memory: 32Mi
+#             cpu: 5m
+#   strategy:
+#     canary:
+#       canaryService: canary-demo-preview
+#       steps:
+#       - setWeight: 20
+#       - pause: {}
+#       - setWeight: 40
+#       - pause: {duration: 10}
+#       - setWeight: 60
+#       - pause: {duration: 10}
+#       - setWeight: 80
+#       - pause: {duration: 10}

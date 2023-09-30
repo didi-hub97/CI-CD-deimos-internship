@@ -1,0 +1,163 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: observability-default-collector-view
+subjects:
+  - kind: User
+    name: system:serviceaccount:observability:default-collector
+    apiGroup: rbac.authorization.k8s.io
+roleRef:
+  kind: ClusterRole
+  name: view
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: opentelemetry.io/v1alpha1
+kind: OpenTelemetryCollector
+metadata:
+  name: default
+  namespace: observability
+spec:
+  mode: deployment
+  hostNetwork: true
+  envFrom:
+    - secretRef:
+        name: opentelemetry-secret
+  config: "receivers:\n  otlp:\n    protocols:\n      grpc:\n        endpoint: 0.0.0.0:4317\n      http:\n        cors:\n          allowed_origins:\n            - http://*\n            - https://*\n        endpoint: 0.0.0.0:4318\n  prometheus:\n    config:\n      scrape_configs:\n        - job_name: \"default-opentelemetry-collector\"\n          scrape_interval: 5m\n          static_configs:\n            - targets: [\"0.0.0.0:80\"]\nexporters:\n  loki:\n    endpoint: https://${grafana-cloud-loki-host}/loki/api/v1/push\n    auth:\n      authenticator: basicauth/loki\n  otlp/jaeger:\n    endpoint: allinone-collector.observability.svc.cluster.local:4317\n    tls:\n      insecure: true\n  otlp/tempo:\n    endpoint: ${grafana-cloud-tempo-host}:443\n    auth:\n      authenticator: basicauth/tempo\n  logging:\n    loglevel: debug\n  prometheusremotewrite:\n    auth:\n      authenticator: basicauth/prometheusremotewrite\n    endpoint: ${grafana-cloud-prom-url}\n    target_info:\n      enabled: true\nextensions:\n  basicauth/loki:\n    client_auth:\n      username: ${grafana-cloud-loki-username}\n      password: ${grafana-cloud-loki-password}\n  basicauth/prometheusremotewrite:\n    client_auth:\n      username: ${grafana-cloud-prom-username}\n      password: ${grafana-cloud-prom-password}\n  basicauth/tempo:\n    client_auth:\n      username: ${grafana-cloud-tempo-username}\n      password: ${grafana-cloud-tempo-password}\nconnectors:\n  spanmetrics:\n    histogram:\n      explicit:\n        buckets: [100us, 1ms, 2ms, 6ms, 10ms, 100ms, 250ms]\n    dimensions:\n      - name: http.method\n        default: GET\n      - name: http.status_code\n    dimensions_cache_size: 1000\n    aggregation_temporality: \"AGGREGATION_TEMPORALITY_CUMULATIVE\"\nprocessors:\n  tail_sampling:\n    decision_wait: 10s \n    num_traces: 10000\n    expected_new_traces_per_sec: 100\n    policies:\n      [          \n        {\n          name: errors-policy,\n          type: status_code,\n          status_code: {status_codes: [ERROR]}\n        },\n        {\n          name: randomized-policy,\n          type: probabilistic,\n          probabilistic: {sampling_percentage: 10}\n        },\n        {\n          name: latency-policy,\n          type: latency,\n          latency: {threshold_ms: 5000}\n        },\n      ]\n  attributes/loki:\n    actions:\n      - action: insert\n        key: log_file_name\n        from_attribute: log.file.name\n      - action: insert\n        key: loki.attribute.labels\n        value: log_file_name\n  k8sattributes:\n  batch:\n    send_batch_max_size: 1000\n    send_batch_size: 100\n    timeout: 10s\n  resourcedetection:\n    detectors: [system, env]\n    timeout: 5s\n    override: false\n  metricstransform/insert:\n    transforms:\n      - include: calls\n        match_type: strict\n        action: update\n        new_name: calls_total\n        operations:\n          - action: update_label\n            label: span.name\n            new_label: operation\n      - include: duration\n        match_type: strict\n        action: update\n        new_name: latency\n        operations:\n          - action: update_label\n            label: span.name\n            new_label: operation\nservice:\n  extensions: [basicauth/prometheusremotewrite, basicauth/tempo, basicauth/loki]\n  pipelines:\n    traces:\n      receivers: [otlp]\n      processors: [resourcedetection, k8sattributes, batch, tail_sampling]\n      exporters: [spanmetrics, otlp/jaeger, otlp/tempo]\n    metrics:\n      receivers: [spanmetrics, otlp]\n      processors: [resourcedetection, k8sattributes, metricstransform/insert, batch]\n      exporters: [prometheusremotewrite]\n    logs:\n      receivers: [otlp]\n      processors: [resourcedetection, k8sattributes, attributes/loki]\n      exporters: [logging, loki]\n  telemetry:\n    logs:\n      level: warn\n"
+  podAnnotations:
+    reloader.stakater.com/auto: "true"
+  replicas: 1
+  upgradeStrategy: automatic
+---
+apiVersion: opentelemetry.io/v1alpha1
+kind: Instrumentation
+metadata:
+  name: instrumentation
+  namespace: observability
+spec:
+  dotnet:
+    env:
+      - name: OTEL_DOTNET_AUTO_DEBUG
+        value: "true"
+      - name: OTEL_DOTNET_AUTO_LOGS_INCLUDE_FORMATTED_MESSAGE
+        value: "true"
+  exporter:
+    endpoint: http://default-collector.observability.svc.cluster.local:4318
+  propagators:
+    - tracecontext
+    - baggage
+    - b3
+  sampler:
+    type: parentbased_always_on
+    argument: "0.25"
+---
+apiVersion: jaegertracing.io/v1
+kind: Jaeger
+metadata:
+  name: allinone
+  namespace: observability
+spec:
+  strategy: allInOne
+  allInOne:
+    image: jaegertracing/all-in-one:latest
+    options:
+      log-level: debug
+      query:
+        base-path: /jaeger
+    metricsStorage:
+      type: prometheus
+  storage:
+    options:
+      memory:
+        max-traces: 100000
+    secretName: jaeger-prometheus
+  ui:
+    options:
+      monitor:
+        menuEnabled: true
+---
+# External Secret for the jaeger prometheus queries
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: jaeger-prometheus
+  namespace: observability
+spec:
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcpsm-clustersecretstore
+  target:
+    name: jaeger-prometheus
+    template:
+      type: Opaque
+      data:
+        PROMETHEUS_SERVER_URL: "https://{{ .user | toString }}:{{ .token | toString }}@{{ .host | toString }}/api/prom"
+  data:
+    - secretKey: user
+      remoteRef:
+        key: grafana-cloud-prom-username
+    - secretKey: token
+      remoteRef:
+        key: grafana-cloud-prom-password
+    - secretKey: host
+      remoteRef:
+        key: grafana-cloud-prom-host
+---
+apiVersion: external-secrets.io/v1beta1
+kind: ExternalSecret
+metadata:
+  name: opentelemetry-secret
+  namespace: observability
+spec:
+  data:
+    - remoteRef:
+        key: gcp-project-name
+      secretKey: gcp-project-name
+    - remoteRef:
+        key: grafana-cloud-cluster-name
+      secretKey: grafana-cloud-cluster-name
+    - remoteRef:
+        key: grafana-cloud-prom-url
+      secretKey: grafana-cloud-prom-url
+    - remoteRef:
+        key: grafana-cloud-prom-username
+      secretKey: grafana-cloud-prom-username
+    - remoteRef:
+        key: grafana-cloud-prom-password
+      secretKey: grafana-cloud-prom-password
+    - remoteRef:
+        key: grafana-cloud-loki-url
+      secretKey: grafana-cloud-loki-url
+    - remoteRef:
+        key: grafana-cloud-loki-username
+      secretKey: grafana-cloud-loki-username
+    - remoteRef:
+        key: grafana-cloud-loki-password
+      secretKey: grafana-cloud-loki-password
+    - remoteRef:
+        key: redis-external-name
+      secretKey: redis-external-name
+    - remoteRef:
+        key: grafana-cloud-tempo-url
+      secretKey: grafana-cloud-tempo-url
+    - remoteRef:
+        key: grafana-cloud-tempo-username
+      secretKey: grafana-cloud-tempo-username
+    - remoteRef:
+        key: grafana-cloud-tempo-password
+      secretKey: grafana-cloud-tempo-password
+    - remoteRef:
+        key: grafana-cloud-prom-host
+      secretKey: grafana-cloud-prom-host
+    - remoteRef:
+        key: grafana-cloud-loki-host
+      secretKey: grafana-cloud-loki-host
+    - remoteRef:
+        key: grafana-cloud-tempo-host
+      secretKey: grafana-cloud-tempo-host
+  refreshInterval: 1h
+  secretStoreRef:
+    kind: ClusterSecretStore
+    name: gcpsm-clustersecretstore
+  target:
+    name: opentelemetry-secret

@@ -1,0 +1,15 @@
+apiVersion: tekton.dev/v1beta1
+kind: Task
+metadata:
+  name: grype
+  namespace: tekton-runs
+spec:
+  params:
+  - name: grype-param
+    type: string
+    default: "default-value-here" # Provide a default value
+  steps:
+  - name: run-grype
+    image: grype:latest
+    command: ["/bin/bash"]
+    args: ["-c", "execute grype command here using $(params.grype-param)"]

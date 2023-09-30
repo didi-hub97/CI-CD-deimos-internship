@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: node-web-app-env
+  namespace: myapp
+data:
+  NODE_ENV: production

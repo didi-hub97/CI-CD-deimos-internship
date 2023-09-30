@@ -1,0 +1,27 @@
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  annotations:
+    argocd-image-updater.argoproj.io/container.update-strategy: semver
+  name: node-web-app
+  namespace: argocd
+spec:
+  source:
+    helm:
+      releaseName: node-web-app
+      values: |
+        fullnameOverride: node-web-app
+        image:
+          # The container registry where the container is located.
+          repository: localhost:5000/node-web-app
+          # The container image tag
+          tag: 0.0.1
+        livenessProbe: {}
+        podAnnotations:
+            instrumentation.opentelemetry.io/inject-sdk: observability/instrumentation
+        readinessProbe: {}
+        service:
+          port: 8081
+    # helm:
+    #   valueFiles:
+    #    # - ../../environments/overlays/local/node-web-app-values.yaml
